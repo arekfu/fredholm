@@ -1,5 +1,5 @@
 use crate::state::State;
-use crate::Params;
+use crate::options::Params;
 use rand::Rng;
 use rgsl::lambert_w::{lambert_W0, lambert_Wm1};
 
