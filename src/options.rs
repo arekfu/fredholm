@@ -1,4 +1,26 @@
+use std::str::FromStr;
 use structopt::StructOpt;
+
+pub enum SamplingAlgorithm {
+    /// Decompose the kernel into its positive and negative part
+    PositiveNegativeDecomposition,
+    /// Decompose the kernel into an exponential term and a linear-exponential
+    /// term
+    ExpLinearDecomposition,
+}
+
+type ParseError = &'static str;
+
+impl FromStr for SamplingAlgorithm {
+    type Err = ParseError;
+    fn from_str(algo: &str) -> Result<Self, Self::Err> {
+        match algo {
+            "positive-negative" => Ok(SamplingAlgorithm::PositiveNegativeDecomposition),
+            "exp-linear" => Ok(SamplingAlgorithm::ExpLinearDecomposition),
+            _ => Err("Could not parse the sampling algorithm"),
+        }
+    }
+}
 
 /// Parameters for the Monte Carlo simulation
 #[derive(StructOpt)]
@@ -53,5 +75,8 @@ pub struct FredholmConfig {
 
     #[structopt(flatten)]
     pub params: Params,
-}
 
+    /// the sampling algorithm to use
+    #[structopt(short, long, default_value = "positive-negative")]
+    pub sampling_algorithm: SamplingAlgorithm,
+}

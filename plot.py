@@ -18,18 +18,25 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 theory = np.loadtxt('theory.dat')
-mc = np.loadtxt('fredholm.dat')
+mc_pn = np.loadtxt('fredholm_pn.dat')
+mc_el = np.loadtxt('fredholm_el.dat')
 
 fig, ax = plt.subplots(2, 1, sharex=True)
 
-ax[0].errorbar(mc[:, 0], mc[:, 1], mc[:, 2], label='Monte Carlo', marker='.',
-             linestyle='')
-ax[0].plot(theory[:, 0], theory[:, 1], label='theory')
+ax[0].errorbar(mc_pn[:, 0], mc_pn[:, 1], mc_pn[:, 2],
+               label=r'Monte Carlo, positive-negative sampling', marker='.',
+               linestyle='', zorder=1)
+ax[0].errorbar(mc_el[:, 0], mc_el[:, 1], mc_el[:, 2],
+               label=r'Monte Carlo, exp-lin sampling', marker='.',
+               linestyle='', zorder=2)
+ax[0].plot(theory[:, 0], theory[:, 1], label='theory', zorder=3)
 ax[0].legend()
 ax[0].set_ylabel('density')
 
-diff = (mc[:, 1] - theory[:, 1]) / mc[:, 2]
-ax[1].plot(mc[:, 0], diff, '.')
+diff_pn = (mc_pn[:, 1] - theory[:, 1]) / mc_pn[:, 2]
+diff_el = (mc_el[:, 1] - theory[:, 1]) / mc_el[:, 2]
+ax[1].plot(mc_pn[:, 0], diff_pn, '.')
+ax[1].plot(mc_el[:, 0], diff_el, '.')
 ax[1].set_xlabel('position')
 ax[1].set_ylabel('Student $t$ variable')
 ax[1].set_ylim(-3, 3)

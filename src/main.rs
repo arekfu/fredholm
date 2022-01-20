@@ -23,11 +23,10 @@ mod sample;
 use sample::run;
 
 mod histo;
+mod options;
 mod state;
 mod transition;
-mod options;
 use options::FredholmConfig;
-
 
 fn main() {
     let config = Arc::new(FredholmConfig::from_args());

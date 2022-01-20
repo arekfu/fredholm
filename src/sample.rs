@@ -15,14 +15,16 @@
 // You should have received a copy of the GNU General Public License along with
 // fredholm.  If not, see <https://www.gnu.org/licenses/>.
 
+use rand::rngs::ThreadRng;
 use rand::{thread_rng, Rng};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time;
 
 use crate::histo::Histo;
+use crate::options::SamplingAlgorithm;
 use crate::state::State;
-use crate::transition::Transition;
+use crate::transition::{ELTransition, PNTransition, Transition};
 use crate::FredholmConfig;
 
 #[derive(Debug)]
@@ -33,7 +35,12 @@ pub struct Samples(pub Vec<Sample>);
 
 pub fn run(config: Arc<FredholmConfig>) {
     let now = time::Instant::now();
-    let transition = Arc::new(Transition::new(&config.params));
+    let transition: Arc<dyn Transition<ThreadRng>> = match config.sampling_algorithm {
+        SamplingAlgorithm::PositiveNegativeDecomposition => {
+            Arc::new(PNTransition::new(&config.params))
+        }
+        SamplingAlgorithm::ExpLinearDecomposition => Arc::new(ELTransition::new(&config.params)),
+    };
 
     let mut histo = Arc::new(Mutex::new(Histo::new(0.0, config.cutoff, config.bins)));
 
@@ -90,7 +97,7 @@ pub fn run(config: Arc<FredholmConfig>) {
 }
 
 fn generate_samples<T>(
-    transition: &Transition,
+    transition: &Arc<dyn Transition<T>>,
     replicas: usize,
     cutoff: f64,
     roulette_threshold: f64,
@@ -106,7 +113,7 @@ where
 }
 
 fn generate_sample<T>(
-    transition: &Transition,
+    transition: &Arc<dyn Transition<T>>,
     cutoff: f64,
     roulette_threshold: f64,
     rng: &mut T,

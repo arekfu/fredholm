@@ -1,24 +1,48 @@
-use crate::state::State;
 use crate::options::Params;
+use crate::state::State;
 use rand::Rng;
 use rgsl::lambert_w::{lambert_W0, lambert_Wm1};
 
-pub struct Transition {
+pub trait Transition<T> : Send + Sync
+where
+    T: Rng,
+{
+    fn sample(&self, from: &State, cutoff: f64, rng: &mut T) -> Option<State>;
+}
+
+pub struct PNTransition {
     alpha: f64,
     lambda: f64,
     sigma: f64,
 }
 
-impl Transition {
-    pub fn new(params: &Params) -> Transition {
-        Transition {
+impl PNTransition {
+    pub fn new(params: &Params) -> PNTransition {
+        PNTransition {
             alpha: params.alpha,
             lambda: params.lambda,
             sigma: params.sigma,
         }
     }
 
-    /// Sample a transition
+    fn displace_positive(&self, xi: f64) -> f64 {
+        (-self.alpha + self.sigma - self.alpha * lambert_Wm1((-1.0_f64 + xi) / (1.0_f64.exp())))
+            / (self.alpha * self.sigma)
+    }
+
+    fn displace_negative(&self, xi: f64, exp: f64) -> f64 {
+        (-self.alpha + self.sigma
+            - self.alpha
+                * lambert_W0(
+                    (-(self.alpha * xi) + (-1.0_f64 + xi) * (self.alpha - self.sigma) / exp)
+                        / (1.0_f64.exp() * self.alpha),
+                ))
+            / (self.alpha * self.sigma)
+    }
+}
+
+impl<T: Rng> Transition<T> for PNTransition {
+    /// Sample a transition using the positive-negative decomposition
     ///
     /// The kernel that we are sampling here is
     ///
@@ -70,7 +94,7 @@ impl Transition {
     /// important because otherwise the function will not have the right limits
     /// as ξ approaches 0 and 1.
     ///
-    pub fn sample<T>(&self, from: &State, cutoff: f64, rng: &mut T) -> Option<State>
+    fn sample(&self, from: &State, cutoff: f64, rng: &mut T) -> Option<State>
     where
         T: Rng,
     {
@@ -105,32 +129,94 @@ impl Transition {
             weight: new_weight,
         })
     }
+}
 
-    fn displace_positive(&self, xi: f64) -> f64 {
-        (-self.alpha + self.sigma - self.alpha * lambert_Wm1((-1.0_f64 + xi) / (1.0_f64.exp())))
-            / (self.alpha * self.sigma)
+pub struct ELTransition {
+    alpha: f64,
+    lambda: f64,
+    sigma: f64,
+}
+
+impl ELTransition {
+    pub fn new(params: &Params) -> ELTransition {
+        ELTransition {
+            alpha: params.alpha,
+            lambda: params.lambda,
+            sigma: params.sigma,
+        }
     }
+}
 
-    fn displace_negative(&self, xi: f64, exp: f64) -> f64 {
-        (-self.alpha + self.sigma
-            - self.alpha
-                * lambert_W0(
-                    (-(self.alpha * xi) + (-1.0_f64 + xi) * (self.alpha - self.sigma) / exp)
-                        / (1.0_f64.exp() * self.alpha),
-                ))
-            / (self.alpha * self.sigma)
+impl<T: Rng> Transition<T> for ELTransition {
+    /// Sample a transition using the exp-linear decomposition
+    ///
+    /// The kernel that we are sampling here is
+    ///
+    ///     f(d) = λ Σ Exp[-Σ d] (α d - 1)
+    ///
+    /// We decompose the kernel into a linear-exponential part and an
+    /// exponential part:
+    ///
+    ///     f(d) = λ (1 + α/Σ) ((1-p) Σ² d Exp[-Σ d] - p Σ Exp[-Σ d])
+    ///
+    /// The probability p reads
+    ///
+    ///     p = α / (α + Σ)
+    ///
+    /// The sampling algorithm is the following:
+    ///
+    /// - The factor λ (1 + α/Σ) is treated as a weight multiplier.
+    /// - With probability p: we sample an exponential displacement from the
+    ///   distribution Σ Exp[-Σ d] and we flip the sign of the weight;
+    /// - With probability 1-p: we sample *two* exponential displacements from
+    ///  the distribution Σ Exp[-Σ d]; the actual particle displacement is the
+    ///  sum of the sampled displacements. Here we use the fact that the sum of
+    ///  two exponential variates has a linear-exponential distribution.
+    ///
+    fn sample(&self, from: &State, cutoff: f64, rng: &mut T) -> Option<State>
+    where
+        T: Rng,
+    {
+        let norm_tot = 1.0_f64 + self.alpha / self.sigma;
+        let mut weight_multiplier = self.lambda * norm_tot;
+        let prob_exp = 1.0_f64 / norm_tot;
+
+        let xi: f64 = rng.gen();
+        let xi2: f64 = rng.gen();
+        let exp2 = -xi2.ln() / self.sigma;
+        let displacement: f64 = if xi < prob_exp {
+            // exponential branch was selected
+            weight_multiplier = -weight_multiplier;
+            exp2
+        } else {
+            // linear-exponential branch was selected
+            let xi3: f64 = rng.gen();
+            let exp3 = -xi3.ln() / self.sigma;
+            exp2 + exp3
+        };
+
+        let new_position = from.position + displacement;
+        if new_position > cutoff {
+            return None;
+        }
+
+        let new_weight = from.weight * weight_multiplier;
+        Some(State {
+            position: new_position,
+            weight: new_weight,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Transition;
+    use super::PNTransition;
 
     const TOLERANCE: f64 = 1e-10;
 
     #[test]
     fn positive() {
-        let transition = Transition {
+        let transition = PNTransition {
             alpha: 0.375,
             lambda: 0.3435,
             sigma: 1.234,
@@ -153,7 +239,7 @@ mod tests {
 
     #[test]
     fn negative() {
-        let transition = Transition {
+        let transition = PNTransition {
             alpha: 0.375,
             lambda: 0.3435,
             sigma: 1.234,
