@@ -3,7 +3,7 @@ use crate::state::State;
 use rand::Rng;
 use rgsl::lambert_w::{lambert_W0, lambert_Wm1};
 
-pub trait Transition<T> : Send + Sync
+pub trait Transition<T>: Send + Sync
 where
     T: Rng,
 {
