@@ -70,9 +70,9 @@ impl Histo {
             .fold(String::new(), |mut s, ((i, &f), &f2)| {
                 let bin = self.min + (i as f64) * self.width / flen;
                 let mut av = f / fnorm;
-                let err = (1.0 / (self.norm - 1) as f64) * (f2 / fnorm - av.powi(2));
-                let err = err.sqrt() / bin_width;
-                av = av / bin_width;
+                let mut err = (1.0 / (self.norm - 1) as f64) * (f2 / fnorm - av.powi(2));
+                err = err.sqrt() / bin_width;
+                av /= bin_width;
                 writeln!(s, "{} {} {}", bin, av, err).ok();
                 s
             });

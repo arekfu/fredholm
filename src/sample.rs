@@ -42,14 +42,14 @@ pub fn run(config: Arc<FredholmConfig>) {
         SamplingAlgorithm::ExpLinearDecomposition => Arc::new(ELTransition::new(&config.params)),
     };
 
-    let mut histo = Arc::new(Mutex::new(Histo::new(0.0, config.cutoff, config.bins)));
+    let histo = Arc::new(Mutex::new(Histo::new(0.0, config.cutoff, config.bins)));
 
     let mut handles = Vec::new();
     for i in 0..config.threads {
         println!("spawning thread n. {}...", i);
         let config = Arc::clone(&config);
         let transition = Arc::clone(&transition);
-        let histo = Arc::clone(&mut histo);
+        let histo = Arc::clone(&histo);
         let handle = thread::spawn(move || {
             let mut rng = thread_rng();
             let n_histories = config.replicas / config.threads;
