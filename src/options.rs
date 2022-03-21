@@ -17,7 +17,7 @@ impl FromStr for SamplingAlgorithm {
         match algo {
             "positive-negative" => Ok(SamplingAlgorithm::PositiveNegativeDecomposition),
             "exp-linear" => Ok(SamplingAlgorithm::ExpLinearDecomposition),
-            _ => Err("Could not parse the sampling algorithm"),
+            _ => Err("Could not parse the sampling algorithm, expected one of: positive-negative, exp-linear"),
         }
     }
 }
