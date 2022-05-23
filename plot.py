@@ -27,7 +27,7 @@ ax[0].errorbar(mc_pn[:, 0], mc_pn[:, 1], mc_pn[:, 2],
                label=r'Monte Carlo, positive-negative sampling', marker='.',
                linestyle='', zorder=1)
 ax[0].errorbar(mc_el[:, 0], mc_el[:, 1], mc_el[:, 2],
-               label=r'Monte Carlo, exp-lin sampling', marker='.',
+               label=r'Monte Carlo, linear-exponential sampling', marker='.',
                linestyle='', zorder=2)
 ax[0].plot(theory[:, 0], theory[:, 1], label='theory', zorder=3)
 ax[0].legend()
@@ -39,7 +39,7 @@ ax[1].plot(mc_pn[:, 0], diff_pn, '.')
 ax[1].plot(mc_el[:, 0], diff_el, '.')
 ax[1].set_xlabel('position')
 ax[1].set_ylabel('Student $t$ variable')
-ax[1].set_ylim(-3, 3)
+ax[1].set_ylim(-4, 4)
 
 fig.tight_layout()
 fig.savefig('fredholm.pdf', bbox_inches='tight')
